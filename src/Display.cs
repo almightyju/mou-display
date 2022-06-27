@@ -98,17 +98,20 @@ internal class Display
 
     void LineChanged(byte lineNumber, string oldVal, string newVal)
     {
-        for(byte i = 0; i <= 20; i++)
+        lock (_port)
         {
-            char oldC = oldVal.Length > i ? oldVal[i] : ' ';
-            char newC = newVal.Length > i ? newVal[i] : ' ';
+            for (byte i = 0; i <= 20; i++)
+            {
+                char oldC = oldVal.Length > i ? oldVal[i] : ' ';
+                char newC = newVal.Length > i ? newVal[i] : ' ';
 
-            if (oldC == newC)
-                continue;
+                if (oldC == newC)
+                    continue;
 
-            byte[] setPosCmd = new byte[] { 0xFE, 0x47, (byte)(i + 1), lineNumber };
-            _port.Write(setPosCmd, 0, setPosCmd.Length);
-            _port.Write(newC.ToString());
+                byte[] setPosCmd = new byte[] { 0xFE, 0x47, (byte)(i + 1), lineNumber };
+                _port.Write(setPosCmd, 0, setPosCmd.Length);
+                _port.Write(newC.ToString());
+            }
         }
     }
 
