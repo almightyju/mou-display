@@ -18,6 +18,17 @@ public class Worker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
+        
+        try { await DoWork(); }
+        catch(Exception ex) 
+        {
+            _logger.LogError(ex, "Unhandled error");
+            Environment.Exit(1); 
+        }
+    }
+
+    async Task DoWork()
+    {
         HardwareMonitor hwMon = new(_workerTokenSource.Token);
 
         while (!_workerTokenSource.IsCancellationRequested)
