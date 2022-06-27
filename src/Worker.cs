@@ -16,22 +16,27 @@ public class Worker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
+        HardwareMonitor hwMon = new(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            string? port = await GetComPort();
+            SerialPort? port = await GetComPort();
             if(port == null)
                 await Task.Delay(1000, stoppingToken);
-
-            _logger.LogInformation("Connecting to port {port}", port);
-
+            else 
+            { 
+                _logger.LogInformation("Port opened {port}", port.PortName);
+                Display disp = new(port, hwMon);
+                await disp.WaitTillClosed(stoppingToken);
+                _logger.LogInformation("Port lost {port}", port.PortName);
+            }
         }
     }
 
     private async ValueTask<SerialPort> GetComPort()
     {
         //send [0xFE 0x37] and expect 0x53 which means got device correct
-        //then send [0xFE 0x42 0x0] which means turn screen on, no timeout for off
+        //then send [0xFE 0x42 0x0] which means turn screen on, 0x0 = no timeout for off
         //baud rate is 19200
         string? portName = null;
 
@@ -51,6 +56,8 @@ public class Worker : BackgroundService
             BaudRate = 19200
         };
         port.Open();
+
+        return port;
     }
 
     [SupportedOSPlatform("windows")]
