@@ -6,34 +6,45 @@ namespace LcdScreenApp;
 
 public class Worker : BackgroundService
 {
-    private readonly ILogger<Worker> _logger;
+    readonly ILogger<Worker> _logger;
+    readonly CancellationTokenSource _workerTokenSource;
 
     public Worker(ILogger<Worker> logger)
     {
         _logger = logger;
+        _workerTokenSource = new();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-        HardwareMonitor hwMon = new(stoppingToken);
+        HardwareMonitor hwMon = new(_workerTokenSource.Token);
 
-        while (!stoppingToken.IsCancellationRequested)
+        while (!_workerTokenSource.IsCancellationRequested)
         {
             SerialPort? port = await GetComPort();
             if(port == null)
-                await Task.Delay(1000, stoppingToken);
+                await Task.Delay(1000, _workerTokenSource.Token);
             else 
             { 
                 _logger.LogInformation("Port opened {port}", port.PortName);
                 Display disp = new(port, hwMon);
-                await disp.WaitTillClosed(stoppingToken);
-                _logger.LogInformation("Port lost {port}", port.PortName);
+                await disp.WaitTillClosed(_workerTokenSource.Token);
+                if(!_workerTokenSource.IsCancellationRequested)
+                    _logger.LogInformation("Port lost {port}", port.PortName);
             }
         }
     }
 
-    private async ValueTask<SerialPort> GetComPort()
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        _workerTokenSource.Cancel();
+        await base.StopAsync(cancellationToken);
+        await ExecuteTask;
+        _logger.LogInformation("Service stopped");
+    }
+
+    static async ValueTask<SerialPort> GetComPort()
     {
         //send [0xFE 0x37] and expect 0x53 which means got device correct
         //then send [0xFE 0x42 0x0] which means turn screen on, 0x0 = no timeout for off
@@ -61,7 +72,7 @@ public class Worker : BackgroundService
     }
 
     [SupportedOSPlatform("windows")]
-    private ValueTask<string?> GetComPortWindows()
+    static ValueTask<string?> GetComPortWindows()
     {
         string[] portNames = SerialPort.GetPortNames();
 

@@ -41,23 +41,27 @@ internal class HardwareMonitor : INotifyPropertyChanged
                 string? sensorType = instance.GetPropertyValue("SensorType") as string;
                 if (sensorType != "Temperature")
                     continue;
-                string? name = instance.GetPropertyValue("Name") as string;
-                if (name == null)
+                if (instance.GetPropertyValue("Name") is not string name)
                     continue;
 
-                float? value = instance.GetPropertyValue("Value") as float?;
-                if (value == null)
+                int value;
+                object oValue = instance.GetPropertyValue("Value");
+                if (oValue is double dValue)
+                    value = (int)Math.Round(dValue);
+                else if (oValue is float fValue)
+                    value = (int)Math.Round(fValue);
+                else
                     continue;
-                int iValue = (int)Math.Round(value.Value);
+
                 if(name == "CPU Package")
-                    cpuTemps.Add(iValue);
+                    cpuTemps.Add(value);
                 else if(name == "GPU Core")
-                    gpuTemps.Add(iValue);
+                    gpuTemps.Add(value);
             }
 
             CompareAndRaiseChanges(cpuTemps, gpuTemps);
 
-            await Task.Delay(1000);
+            await Task.Delay(1000, cancelToken);
         }
     }
 
@@ -68,7 +72,7 @@ internal class HardwareMonitor : INotifyPropertyChanged
             _cpuTemps = cpuTemps;
             PropertyChanged?.Invoke(this, new(nameof(CpuTemps)));
         }
-        if (!_gpuTemps.SequenceEqual(_gpuTemps))
+        if (!_gpuTemps.SequenceEqual(gpuTemps))
         {
             _gpuTemps = gpuTemps;
             PropertyChanged?.Invoke(this, new(nameof(GpuTemps)));

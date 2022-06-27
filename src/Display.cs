@@ -35,26 +35,22 @@ internal class Display
         _port = port;
         _hwMon = hwMon;
 
-        ClearScreen();
-
         Line1 = new();
         Line2 = new();
         Line1.TextChanged += (o, n) => LineChanged(1, o, n);
         Line2.TextChanged += (o, n) => LineChanged(2, o, n);
-
-        Line1.Text = GetDateString();
-        Line2.Text = GetTempString();
-        hwMon.PropertyChanged += HwMon_PropertyChanged;
-    }
-
-    private void ClearScreen()
-    {
-        byte[] clr = new byte[] { 0xFE, 0x58 };
-        _port.Write(clr, 0, clr.Length);
     }
 
     internal async Task WaitTillClosed(CancellationToken cancelToken)
     {
+        ScreenOn();
+        ClearScreen();
+
+        Line1.Text = GetDateString();
+        Line2.Text = GetTempString();
+
+        _hwMon.PropertyChanged += HwMon_PropertyChanged;
+
         while (!cancelToken.IsCancellationRequested && _port.IsOpen)
         {
             await Task.Delay(200, cancelToken);
@@ -62,24 +58,28 @@ internal class Display
         }
 
         if (_port.IsOpen)
+        {
+            ScreenOff();
             _port.Close();
+        }
         _port.Dispose();
 
         _hwMon.PropertyChanged -= HwMon_PropertyChanged;
     }
 
 
-    static char[] _prefixSuffix = new[] {'|', '/', '-', '\\' };
-    private string GetDateString() 
+    static readonly char[] _prefixSuffix = new[] {'|', '/', '-', '\\' };
+
+    static string GetDateString() 
     {
         DateTime now = DateTime.Now;
         int charIdx = now.Second % 4;
         char prefixSuffix = _prefixSuffix[charIdx];
 
-        return $"{prefixSuffix} {now.ToString("dd MMM  hh:mm tt")} {prefixSuffix}";
+        return $"{prefixSuffix} {now:dd MMM  hh:mm tt} {prefixSuffix}";
     } 
 
-    private string GetTempString()
+    string GetTempString()
     {
         int cpuTemp = _hwMon.CpuTemps.FirstOrDefault();
         int gpuTemp = _hwMon.GpuTemps.FirstOrDefault();
@@ -91,12 +91,12 @@ internal class Display
         return $" CPU: {cpu}c  GPU: {gpu}c ";
     }
 
-    private void HwMon_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    void HwMon_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         Line2.Text = GetTempString();
     }
 
-    private void LineChanged(byte lineNumber, string oldVal, string newVal)
+    void LineChanged(byte lineNumber, string oldVal, string newVal)
     {
         for(byte i = 0; i <= 20; i++)
         {
@@ -111,4 +111,13 @@ internal class Display
             _port.Write(newC.ToString());
         }
     }
+
+    void ClearScreen() =>
+        _port.Write(new byte[] { 0xFE, 0x58 }, 0, 2);
+
+    void ScreenOff() =>
+        _port.Write(new byte[] { 0xFE, 0x46 }, 0, 2);
+
+    void ScreenOn() =>
+        _port.Write(new byte[] { 0xFE, 0x42, 0x0 }, 0, 3);
 }
