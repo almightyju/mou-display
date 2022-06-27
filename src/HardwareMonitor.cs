@@ -61,7 +61,7 @@ internal class HardwareMonitor : INotifyPropertyChanged
 
             CompareAndRaiseChanges(cpuTemps, gpuTemps);
 
-            await Task.Delay(1000, cancelToken);
+            await TaskEx.DelayNoThrow(1000, cancelToken);
         }
     }
 

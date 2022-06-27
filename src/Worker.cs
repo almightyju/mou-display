@@ -22,15 +22,15 @@ public class Worker : BackgroundService
 
         while (!_workerTokenSource.IsCancellationRequested)
         {
-            SerialPort? port = await GetComPort();
-            if(port == null)
-                await Task.Delay(1000, _workerTokenSource.Token);
-            else 
-            { 
+            SerialPort? port = await GetComPort(_workerTokenSource.Token);
+            if (port == null)
+                await TaskEx.DelayNoThrow(1000, _workerTokenSource.Token);
+            else
+            {
                 _logger.LogInformation("Port opened {port}", port.PortName);
                 Display disp = new(port, hwMon);
                 await disp.WaitTillClosed(_workerTokenSource.Token);
-                if(!_workerTokenSource.IsCancellationRequested)
+                if (!_workerTokenSource.IsCancellationRequested)
                     _logger.LogInformation("Port lost {port}", port.PortName);
             }
         }
@@ -44,7 +44,7 @@ public class Worker : BackgroundService
         _logger.LogInformation("Service stopped");
     }
 
-    static async ValueTask<SerialPort> GetComPort()
+    static async ValueTask<SerialPort> GetComPort(CancellationToken cancellationToken)
     {
         //send [0xFE 0x37] and expect 0x53 which means got device correct
         //then send [0xFE 0x42 0x0] which means turn screen on, 0x0 = no timeout for off
@@ -59,7 +59,7 @@ public class Worker : BackgroundService
                 throw new NotImplementedException();
 
             if (portName == null)
-                await Task.Delay(1000);
+                await TaskEx.DelayNoThrow(1000, cancellationToken);
         }
 
         SerialPort port = new(portName)

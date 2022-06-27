@@ -53,7 +53,7 @@ internal class Display
 
         while (!cancelToken.IsCancellationRequested && _port.IsOpen)
         {
-            await Task.Delay(200, cancelToken);
+            await TaskEx.DelayNoThrow(200, cancelToken);
             Line1.Text = GetDateString();
         }
 
