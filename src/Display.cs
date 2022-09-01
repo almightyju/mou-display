@@ -76,7 +76,10 @@ internal class Display
         int charIdx = now.Second % 4;
         char prefixSuffix = _prefixSuffix[charIdx];
 
-        return $"{prefixSuffix} {now:dd MMM  hh:mm tt} {prefixSuffix}";
+        string dayMonth = now.ToString("dd MMM").PadRight(7, ' ');
+        string time = now.ToString("hh:mm tt");
+
+        return $"{prefixSuffix} {dayMonth} {time} {prefixSuffix}";
     } 
 
     string GetTempString()
